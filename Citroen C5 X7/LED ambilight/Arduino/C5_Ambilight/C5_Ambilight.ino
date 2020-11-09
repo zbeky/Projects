@@ -1,6 +1,6 @@
-#include <FastLED.h>
-#include <LowPower.h>
-#include <interval.h>
+#include "src/FastLED/FastLED.h"
+#include "src/LowPower/LowPower.h"
+#include "src/interval/interval.h"
 
 //Color definition when headlights are on
 byte lightsRedComponent = 240;
