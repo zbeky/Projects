@@ -4,9 +4,9 @@
 
 //Color definition when headlights are on
 byte lightsRedComponent = 240;
-byte lightsGreenComponent = 20; //bylo 5
+byte lightsGreenComponent = 20;
 byte lightsBlueComponent = 0;
-int lightsBrightness = 15; //bylo 10
+int lightsBrightness = 15;
 bool headlights = false;
 
 //Color definition when doors are opened
@@ -41,9 +41,9 @@ void setup() {
   pinMode(doorsPinA, INPUT);
   pinMode(lightsPin, INPUT);
   pinMode(LEDPin, OUTPUT);
-  digitalWrite(LEDPin, LOW);
-  delay(2000); // power-up safety delay
   digitalWrite(LEDPin, HIGH);
+  delay(2000); // power-up safety delay
+  digitalWrite(LEDPin, LOW);
   delay(500);
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setDither(0); //Prevent flikering
