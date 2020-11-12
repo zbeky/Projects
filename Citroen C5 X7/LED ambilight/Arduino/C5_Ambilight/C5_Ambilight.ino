@@ -79,7 +79,7 @@ void loop() {
 
 void sleep() {
 	
-  digitalWrite(LEDPin, LOW);
+  digitalWrite(LEDPin, HIGH);
   
   attachInterrupt(digitalPinToInterrupt(doorsPinD), wake, CHANGE);
   attachInterrupt(digitalPinToInterrupt(lightsPin), wake, CHANGE);
@@ -89,7 +89,7 @@ void sleep() {
   detachInterrupt(digitalPinToInterrupt(doorsPinD));
   detachInterrupt(digitalPinToInterrupt(lightsPin));
 
-  digitalWrite(LEDPin, HIGH);
+  digitalWrite(LEDPin, LOW);
   delay(50);
   
 }

@@ -3,3 +3,5 @@
 Strong warm white light when doors are opened
 
 Dimmed red light when headlights are on
+
+Standby current 1,1 mA
