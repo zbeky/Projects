@@ -1,0 +1,24 @@
+Partlist exported from //cz-prl-ns-17.kiekert.com/User-Documents/senkerikm/EAGLE/projects/Doma/C5 Ambilight/C5 Ambilight.sch at 13.11.2020 7:03
+
+Part          Value                   Device                    Package                     Description                                            
+ARDUINO_NANO1                         ARDUINO_NANO              ARDUINO_NANO                Arduino Nano V3.0                                      
+C1            1000uF                  CPOL-EUTT5D10             TT5D10                      POLARIZED CAPACITOR, European symbol                   
+C2            1nF                     C-EU050-025X075           C050-025X075                CAPACITOR, European symbol                             
+C3            1nF                     C-EU050-025X075           C050-025X075                CAPACITOR, European symbol                             
+D1            UF4003                  UF4003                    DO41-10                     DIODE                                                  
+D2            UF4003                  UF4003                    DO41-10                     DIODE                                                  
+OK1           SFH618A-3               SFH618A-3                 DIP4                        Optocoupler, Phototransistor Output, Low Input Current 
+OK2           SFH618A-3               SFH618A-3                 DIP4                        Optocoupler, Phototransistor Output, Low Input Current 
+Q1            SQP90P06-07L_GE3        VISHAY_SQP90P06-07LTO220V TO220V                                                                             
+R1            470R                    R-EU_0207/10              0207/10                     RESISTOR, European symbol                              
+R2            10k                     R-EU_0207/7               0207/7                      RESISTOR, European symbol                              
+R3            10k                     R-EU_0207/7               0207/7                      RESISTOR, European symbol                              
+R4            10k                     R-EU_0207/10              0207/10                     RESISTOR, European symbol                              
+R5            10k                     R-EU_0207/10              0207/10                     RESISTOR, European symbol                              
+R6            1k                      R-EU_0207/10              0207/10                     RESISTOR, European symbol                              
+R7            1k                      R-EU_0207/10              0207/10                     RESISTOR, European symbol                              
+R8            1k                      R-EU_0207/10              0207/10                     RESISTOR, European symbol                              
+STEP_DOWN1    TRACO_TSR_1-2450        TRACO_TSR_1-2450          TRACO_TSR_1-2450                                                                   
+X1            2PIN_5MM_TERMINAL       2PIN_5MM_TERMINAL         2PIN_5MM_TERMMINAL                                                                 
+X2            2PIN_5MM_TERMINAL       2PIN_5MM_TERMINAL         2PIN_5MM_TERMMINAL                                                                 
+X3            JST-XH-03-PIN-ROUND-PAD JST-XH-03-PIN-ROUND-PAD   JST-XH-03-PACKAGE-ROUND-PAD JST XH Connector 2 Pin                                 
