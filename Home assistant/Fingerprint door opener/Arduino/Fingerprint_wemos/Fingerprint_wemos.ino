@@ -3,36 +3,39 @@
 #include "src/Adafruit-Fingerprint/Adafruit_Fingerprint.h"
 #include <ESP8266WiFi.h>
 #include <Wire.h>
+#include <ArduinoOTA.h>
 
 // Wifi Settings
-#define SSID                          "Your SSID"
-#define PASSWORD                      "Your password"
-IPAddress local_IP(192, 168, 0, 120);
+#define SSID                          "**YOUR SSID HERE**"
+#define PASSWORD                      "**YOUR WI-FI PASSWORD HERE"
+//Static IP setup
+IPAddress local_IP(192, 168, 0, 150);
 IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress primaryDNS(8, 8, 8, 8); 
 
 // MQTT Settings
 #define HOSTNAME                      "fingerprint"
-#define MQTT_SERVER                   "192.168.0.101"				      //IP of MQTT server										
+#define MQTT_SERVER                   "192.168.0.125"					  //IP of MQTT server												
 #define STATE_TOPIC                   "fingerprint_sensor/1/state"        //Subscribe here to receive state updates
 #define REQUEST_TOPIC                 "fingerprint_sensor/1/request"      //Publish here to make learn and delete requests
 #define REPLY_TOPIC                   "fingerprint_sensor/1/reply"        //Publish here to display your action on OLED
 #define AVAILABILITY_TOPIC            "fingerprint_sensor/1/available"
-#define mqtt_username                 "mqtt username"
-#define mqtt_password                 "mqtt password"
+#define mqtt_username                 "**YOUR MQTT USERNAME**"
+#define mqtt_password                 "**YOUR MQTT PASSWORD**"
 
 // Fingerprint Sensor
 #define SENSOR_TX 13                  //GPIO Pin for WEMOS RX, SENSOR TX
 #define SENSOR_RX 12                  //GPIO Pin for WEMOS TX, SENSOR RX
-#define TOUCH_PIN 14
+#define TOUCH_PIN 14				  //GPIO Pin to detect placed finger
+#define learnTimeout 10000            //10s learn timeout
 
 SoftwareSerial mySerial(SENSOR_TX, SENSOR_RX);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
 //Buzzer
-#define buzzerRelayPin        4             //GPIO Pin pro rele D2
-#define buzzerInterval  5000          //Time in ms for opening door
+#define buzzerRelayPin  4             //GPIO Pin pro rele D2
+#define buzzerInterval  2000          //Time in ms for opening door
 
 WiFiClient wifiClient;                // Initiate WiFi library
 PubSubClient client(wifiClient);      // Initiate PubSubClient library
@@ -48,42 +51,22 @@ int loopCounter = 0;
 DynamicJsonDocument mqttMessage(200);
 char mqttBuffer[200];
 
-void person(int id) {
-  if (id == 0) {
-    mqttMessage["Person"] = "Nikdo";
-  } else if ( id > 0 && id <= 10) {
-    mqttMessage["Person"] = "Máca";
-  } else if ( id > 10 && id <= 20) {
-    mqttMessage["Person"] = "Míša";
-  } else if ( id > 20 && id <= 30) {
-    mqttMessage["Person"] = "Nikolka";
-  } else if ( id > 30 && id <= 40) {
-    mqttMessage["Person"] = "Adélka";
-  } else {
-    mqttMessage["Person"] = "Host";
-  }    
-}
-
 void setup(){
 
   Serial.begin(57600);
 
   pinMode(14, INPUT); // Connect D5 to T-Out (pin 5 on reader), T-3v to 3v
   pinMode(buzzerRelayPin, OUTPUT);
-  digitalWrite(buzzerRelayPin, LOW);
 
   Serial.println("Looking for sensor...");
   
   finger.begin(57600);
   delay(5);
-  if (finger.verifyPassword()) {
-    Serial.println("Sensor Found!");
-  } else {
+  while (!finger.verifyPassword()) { // Try to connect to sensor
     Serial.println("Sensor not found!");
-    while (1) {
-      delay(1);
-    }
+    delay(2000);
   }
+  Serial.println("Sensor Found!");
 
   // prep wifi
   WiFi.mode(WIFI_STA);
@@ -92,6 +75,7 @@ void setup(){
   Serial.println("Connecting WiFi...");
   while (WiFi.status() != WL_CONNECTED) {       // Wait till Wifi connected
     delay(1000);
+    Serial.println(WiFi.status());
   }
   Serial.print("IP is ");
   Serial.println(WiFi.localIP());
@@ -104,13 +88,33 @@ void setup(){
   reconnect();                                        //Connect to MQTT server
   Serial.println("Connected");
   // publish initial state
-  mqttMessage["state"] = "idle";
+  mqttMessage["state"] = "Idle";
   mqttMessage["id"] = 0;
-  person(mqttMessage["id"]);
   mqttMessage["success"] = false;
   size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
   client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
   delay(500);
+
+  // enable OTA updates
+  ArduinoOTA.setHostname("Fingerprint");
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
 
   // done
   Serial.println("BOOT SUCCESSFUL!");
@@ -133,9 +137,8 @@ void loop() {
     delay(250);            //give finger time to land and settle
     uint8_t result = getFingerprintID();
     if (result == FINGERPRINT_OK) {
-      mqttMessage["state"] = "matched";
+      mqttMessage["state"] = "Matched";
       mqttMessage["id"] = lastID;
-      person(mqttMessage["id"]);
       size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
       client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
       finger.CloseLED();
@@ -143,23 +146,22 @@ void loop() {
       delay(buzzerInterval);
       digitalWrite(buzzerRelayPin, LOW);
     } else if (result == FINGERPRINT_NOTFOUND) {
-      mqttMessage["state"] = "not matched";
+      mqttMessage["state"] = "Not matched";
       mqttMessage["id"] = 0;
-      person(mqttMessage["id"]);
       size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
       client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
       blinkLEDFast();
     } else {
       // do nothing
     }
-    mqttMessage["state"] = "idle";
+    mqttMessage["state"] = "Idle";
     mqttMessage["id"] = 0;
-    person(mqttMessage["id"]);
     size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
     client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
   }
 
   client.loop();
+  ArduinoOTA.handle();
   delay(200);            //don't need to run this at full speed.
 }
 
@@ -214,6 +216,7 @@ uint8_t getFingerprintEnroll() {
   int p = -1;
   Serial.println("PLACE FINGER...");
   delay(250);
+  long startTime = millis();
   // start routine
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
@@ -234,6 +237,10 @@ uint8_t getFingerprintEnroll() {
       default:
         // unknown error, do nothing
         break;
+    }
+	if (millis()-startTime > learnTimeout) {
+      Serial.println("LEARN TIMEOUT");
+      return true;
     }
   }
   //
@@ -430,8 +437,8 @@ void reconnect() {
       WiFi.reconnect();
       delay(1000);
     }
-    if (client.connect(HOSTNAME, mqtt_username, mqtt_password, AVAILABILITY_TOPIC, 1, true, "offline")) {       //Connect to MQTT server
-      client.publish(AVAILABILITY_TOPIC, "online");         // Once connected, publish online to the availability topic
+    if (client.connect(HOSTNAME, mqtt_username, mqtt_password, AVAILABILITY_TOPIC, 1, true, "Offline")) {       //Connect to MQTT server
+      client.publish(AVAILABILITY_TOPIC, "Online");         // Once connected, publish online to the availability topic
       client.subscribe(REQUEST_TOPIC);
       client.subscribe(REPLY_TOPIC);
       Serial.println("Reconnect success!!!");
@@ -465,9 +472,8 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
         Serial.println(id);
         delay(250);
         // MQTT
-        mqttMessage["state"] = "learning";
+        mqttMessage["state"] = "Learning";
         mqttMessage["id"] = id;
-        person(mqttMessage["id"]);
         size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
         client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
         while (!getFingerprintEnroll());
@@ -492,9 +498,8 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
         Serial.print("ID SELECTED: ");
         Serial.println(id);
         delay(250);
-        mqttMessage["state"] = "deleting";
+        mqttMessage["state"] = "Deleting";
         mqttMessage["id"] = id;
-        person(mqttMessage["id"]);
         size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
         client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
         while (! deleteFingerprint());
@@ -504,6 +509,16 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
         delay(3000);
         id = 0;
       }
+    }
+    // if opening from HA...
+    if (strcmp(requestValue, "open") == 0) {
+      Serial.println("Opening from HA");
+      mqttMessage["state"] = "Opening";
+      size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
+      client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
+      digitalWrite(buzzerRelayPin, HIGH);
+      delay(buzzerInterval);
+      digitalWrite(buzzerRelayPin, LOW);
     }
   }
   // display the reply from the server
@@ -525,9 +540,8 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
   }
   
   // wrap up
-  mqttMessage["state"] = "idle";
+  mqttMessage["state"] = "Idle";
   mqttMessage["id"] = 0;
-  person(mqttMessage["id"]);
   mqttMessage["success"] = false;
   size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
   client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);  

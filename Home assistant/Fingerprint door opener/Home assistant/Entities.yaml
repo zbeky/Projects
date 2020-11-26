@@ -1,0 +1,39 @@
+sensor:
+  - platform: mqtt
+    name: Fingerprint Sensor
+    state_topic: "fingerprint_sensor/1/mode/state"
+    value_template: "{{value_json.state}}"
+    json_attributes_topic: "fingerprint1/mode/state"
+    json_attributes_template: "{{value_json | tojson}}"
+    availability_topic: "fingerprint_sensor/1/available"
+    payload_available: "Online"
+    payload_not_available: "Offline"
+  - platform: template
+    sensors:
+      fingerprint_person:
+        friendly_name: "Fingerprint Person"
+        value_template: >-
+          {% if state_attr('sensor.fingerprint_sensor', "id") | int = 0 %}
+            Nobody
+          {% elif state_attr('sensor.fingerprint_sensor', "id") | int <= 10 %}
+            Person A
+          {% elif state_attr('sensor.fingerprint_sensor', "id") | int <= 20 %}
+            Person B
+          {% else %}
+            Guest
+          {% endif %}
+        icon_template: >-
+          {% if is_state('sensor.fingerprint', 'Matched') %}
+            mdi:human-greeting
+          {% elif is_state('sensor.fingerprint', 'Not matched') %}
+            mdi:police-badge
+          {% else %}
+            mdi:human-male
+          {% endif %}
+
+input_number:
+  fingerprint_select_id:
+    name: Fingerprint ID
+    min: 1
+    max: 100
+    mode: box
