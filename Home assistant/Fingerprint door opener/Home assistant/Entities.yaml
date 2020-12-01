@@ -2,7 +2,7 @@ sensor:
   - platform: mqtt
     name: Fingerprint Sensor
     state_topic: "fingerprint_sensor/1/mode/state"
-    value_template: "{{value_json.state}}"
+    value_template: "{{value_json.State}}"
     json_attributes_topic: "fingerprint1/mode/state"
     json_attributes_template: "{{value_json | tojson}}"
     availability_topic: "fingerprint_sensor/1/available"
@@ -13,11 +13,11 @@ sensor:
       fingerprint_person:
         friendly_name: "Fingerprint Person"
         value_template: >-
-          {% if state_attr('sensor.fingerprint_sensor', "id") | int = 0 %}
+          {% if state_attr('sensor.fingerprint_sensor', "ID") | int = 0 %}
             Nobody
-          {% elif state_attr('sensor.fingerprint_sensor', "id") | int <= 10 %}
+          {% elif state_attr('sensor.fingerprint_sensor', "ID") | int <= 10 %}
             Person A
-          {% elif state_attr('sensor.fingerprint_sensor', "id") | int <= 20 %}
+          {% elif state_attr('sensor.fingerprint_sensor', "ID") | int <= 20 %}
             Person B
           {% else %}
             Guest

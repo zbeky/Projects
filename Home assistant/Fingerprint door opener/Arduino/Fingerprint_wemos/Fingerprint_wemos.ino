@@ -92,9 +92,9 @@ void setup(){
   }
   Serial.println("Connected");
   // publish initial state
-  mqttMessage["state"] = "Idle";
-  mqttMessage["id"] = 0;
-  mqttMessage["success"] = false;
+  mqttMessage["State"] = "Idle";
+  mqttMessage["ID"] = 0;
+  mqttMessage["Success"] = false;
   mqttMessage["Wi-Fi signal"] = WiFi.RSSI();
   size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
   client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
@@ -140,8 +140,8 @@ void loop() {
     uint8_t result = getFingerprintID();
     if (result == FINGERPRINT_OK) {
 	  if (client.connected()) {
-		mqttMessage["state"] = "Matched";
-	    mqttMessage["id"] = lastID;
+		mqttMessage["State"] = "Matched";
+	    mqttMessage["ID"] = lastID;
 	    size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
 	    client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);               
 	  }
@@ -151,8 +151,8 @@ void loop() {
       digitalWrite(buzzerRelayPin, LOW);
     } else if (result == FINGERPRINT_NOTFOUND) {
 	  if (client.connected()) {
-		mqttMessage["state"] = "Not matched";
-        mqttMessage["id"] = 0;
+		mqttMessage["State"] = "Not matched";
+        mqttMessage["ID"] = 0;
         size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
         client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);            
 	  }
@@ -161,8 +161,8 @@ void loop() {
       // do nothing
     }
 	if (client.connected()) {
-	  mqttMessage["state"] = "Idle";
-      mqttMessage["id"] = 0;
+	  mqttMessage["State"] = "Idle";
+      mqttMessage["ID"] = 0;
       size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
       client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);          
 	}
@@ -171,6 +171,9 @@ void loop() {
   if (client.connected()) {
 	client.loop();
 	client.publish(AVAILABILITY_TOPIC, "Online");
+	mqttMessage["Wi-Fi signal"] = WiFi.RSSI();										
+    size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
+    client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);  
 	reconnectCounter = 0;
   } else {
 	reconnectCounter++;
@@ -382,7 +385,7 @@ uint8_t getFingerprintEnroll() {
   if (p == FINGERPRINT_OK) {
     Serial.println("SUCCESS");
     blinkLEDSlow();
-    mqttMessage["success"] = true;
+    mqttMessage["Success"] = true;
     return true;
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     Serial.println("COMM ERROR");
@@ -410,23 +413,23 @@ uint8_t deleteFingerprint() {
   p = finger.deleteModel(id);
   if (p == FINGERPRINT_OK) {
     Serial.println("DELETED");
-    mqttMessage["success"] = true;
+    mqttMessage["Success"] = true;
     return true;
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     Serial.println("PACKET ERROR");
-    mqttMessage["success"] = false;
+    mqttMessage["Success"] = false;
     return p;
   } else if (p == FINGERPRINT_BADLOCATION) {
     Serial.println("BAD LOCATION");
-    mqttMessage["success"] = false;
+    mqttMessage["Success"] = false;
     return p;
   } else if (p == FINGERPRINT_FLASHERR) {
     Serial.println("FLASH ERROR");
-    mqttMessage["success"] = false;
+    mqttMessage["Success"] = false;
     return p;
   } else {
     Serial.print("Unknown error: 0x"); Serial.println(p, HEX);
-    mqttMessage["success"] = false;
+    mqttMessage["Success"] = false;
     return p;
   }
 }
@@ -490,8 +493,8 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
         Serial.println(id);
         delay(250);
         // MQTT
-        mqttMessage["state"] = "Learning";
-        mqttMessage["id"] = id;
+        mqttMessage["State"] = "Learning";
+        mqttMessage["ID"] = id;
         size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
         client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
         while (!getFingerprintEnroll());
@@ -516,8 +519,8 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
         Serial.print("ID SELECTED: ");
         Serial.println(id);
         delay(250);
-        mqttMessage["state"] = "Deleting";
-        mqttMessage["id"] = id;
+        mqttMessage["State"] = "Deleting";
+        mqttMessage["ID"] = id;
         size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
         client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
         while (! deleteFingerprint());
@@ -531,7 +534,7 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
     // if opening from HA...
     if (strcmp(requestValue, "open") == 0) {
       Serial.println("Opening from HA");
-      mqttMessage["state"] = "Opening";
+      mqttMessage["State"] = "Opening";
       size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
       client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
       digitalWrite(buzzerRelayPin, HIGH);
@@ -558,9 +561,9 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
   }
   
   // wrap up
-  mqttMessage["state"] = "Idle";
-  mqttMessage["id"] = 0;
-  mqttMessage["success"] = false;
+  mqttMessage["State"] = "Idle";
+  mqttMessage["ID"] = 0;
+  mqttMessage["Success"] = false;
   mqttMessage["Wi-Fi signal"] = WiFi.RSSI();										
   size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
   client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);  
