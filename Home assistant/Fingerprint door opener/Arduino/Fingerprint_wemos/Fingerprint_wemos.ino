@@ -45,7 +45,7 @@ int lastID = 0;                   //Stores the last matched ID
 int lastConfidenceScore = 0;      //Stores the last matched confidence score
 
 int i;                                // misc for loop use
-int loopCounter = 0;
+int reconnectCounter = 0;
 
 //Declare JSON variables
 DynamicJsonDocument mqttMessage(200);
@@ -57,6 +57,7 @@ void setup(){
 
   pinMode(14, INPUT); // Connect D5 to T-Out (pin 5 on reader), T-3v to 3v
   pinMode(buzzerRelayPin, OUTPUT);
+  digitalWrite(buzzerRelayPin, LOW);
 
   Serial.println("Looking for sensor...");
   
@@ -85,12 +86,16 @@ void setup(){
   Serial.println("Connecting MQTT...");
   client.setServer(MQTT_SERVER, 1883);                // Set MQTT server and port number
   client.setCallback(callback);
-  reconnect();                                        //Connect to MQTT server
+  while (!client.connected()) {       // Loop until connected to MQTT server
+    reconnect(); 					  //Connect to MQTT server
+	delay(1000);
+  }
   Serial.println("Connected");
   // publish initial state
   mqttMessage["state"] = "Idle";
   mqttMessage["id"] = 0;
   mqttMessage["success"] = false;
+  mqttMessage["Wi-Fi signal"] = WiFi.RSSI();
   size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
   client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
   delay(500);
@@ -126,9 +131,6 @@ void setup(){
 
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();                //Just incase we get disconnected from MQTT server
-  }
 
   if (digitalRead(TOUCH_PIN) == HIGH) { // Read T-Out, normally HIGH (when no finger)
     finger.CloseLED();
@@ -137,30 +139,48 @@ void loop() {
     delay(250);            //give finger time to land and settle
     uint8_t result = getFingerprintID();
     if (result == FINGERPRINT_OK) {
-      mqttMessage["state"] = "Matched";
-      mqttMessage["id"] = lastID;
-      size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
-      client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
+	  if (client.connected()) {
+		mqttMessage["state"] = "Matched";
+	    mqttMessage["id"] = lastID;
+	    size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
+	    client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);               
+	  }
       finger.CloseLED();
       digitalWrite(buzzerRelayPin, HIGH);
       delay(buzzerInterval);
       digitalWrite(buzzerRelayPin, LOW);
     } else if (result == FINGERPRINT_NOTFOUND) {
-      mqttMessage["state"] = "Not matched";
-      mqttMessage["id"] = 0;
-      size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
-      client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
+	  if (client.connected()) {
+		mqttMessage["state"] = "Not matched";
+        mqttMessage["id"] = 0;
+        size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
+        client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);            
+	  }
       blinkLEDFast();
     } else {
       // do nothing
     }
-    mqttMessage["state"] = "Idle";
-    mqttMessage["id"] = 0;
-    size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
-    client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);
+	if (client.connected()) {
+	  mqttMessage["state"] = "Idle";
+      mqttMessage["id"] = 0;
+      size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
+      client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);          
+	}
   }
 
-  client.loop();
+  if (client.connected()) {
+	client.loop();
+	client.publish(AVAILABILITY_TOPIC, "Online");
+	reconnectCounter = 0;
+  } else {
+	reconnectCounter++;
+	if (reconnectCounter == 1) {
+	  reconnect();
+	} else if (reconnectCounter > 25) {
+	  reconnectCounter = 0;
+    }	  
+  }
+
   ArduinoOTA.handle();
   delay(200);            //don't need to run this at full speed.
 }
@@ -432,21 +452,19 @@ void blinkLEDSlow() {
 
 void reconnect() {
   Serial.print("Reconnection routine, MQTT = "); Serial.print(client.state()); Serial.print(", Wi-Fi = "); Serial.println(WiFi.status());
-  while (!client.connected()) {       // Loop until connected to MQTT server
-    while (WiFi.status() != WL_CONNECTED) {       // Wait till Wifi connected
-      WiFi.reconnect();
-      delay(1000);
-    }
-    if (client.connect(HOSTNAME, mqtt_username, mqtt_password, AVAILABILITY_TOPIC, 1, true, "Offline")) {       //Connect to MQTT server
-      client.publish(AVAILABILITY_TOPIC, "Online");         // Once connected, publish online to the availability topic
-      client.subscribe(REQUEST_TOPIC);
-      client.subscribe(REPLY_TOPIC);
-      Serial.println("Reconnect success!!!");
-    } else {
-      Serial.print("Reconnect unsuccessful, code "); Serial.println(client.state());
-      delay(2000);  // Will attempt connection again in 2 seconds
-    }
+  
+  if (WiFi.status() != WL_CONNECTED) {       // If disconnected from Wi-Fi
+    WiFi.reconnect();
   }
+  
+  if (client.connect(HOSTNAME, mqtt_username, mqtt_password, AVAILABILITY_TOPIC, 1, true, "Offline")) {       //Connect to MQTT server
+    client.publish(AVAILABILITY_TOPIC, "Online");         // Once connected, publish online to the availability topic
+    client.subscribe(REQUEST_TOPIC);
+    Serial.println("Reconnect success!!!");
+  } else {
+    Serial.print("Reconnect unsuccessful, code "); Serial.println(client.state());
+  }
+
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {          //The MQTT callback which listens for incoming messages on the subscribed topics
@@ -543,6 +561,7 @@ void callback(char* topic, byte* payload, unsigned int length) {          //The 
   mqttMessage["state"] = "Idle";
   mqttMessage["id"] = 0;
   mqttMessage["success"] = false;
+  mqttMessage["Wi-Fi signal"] = WiFi.RSSI();										
   size_t mqttMessageSize = serializeJson(mqttMessage, mqttBuffer);
   client.publish(STATE_TOPIC, mqttBuffer, mqttMessageSize);  
 }
