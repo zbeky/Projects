@@ -15629,8 +15629,8 @@ by R. Vogg  15.March.2002</description>
 <part name="GND4" library="supply1" deviceset="GND" device=""/>
 <part name="GND5" library="supply1" deviceset="GND" device=""/>
 <part name="GND6" library="supply1" deviceset="GND" device=""/>
-<part name="C2" library="resistor" deviceset="C-EU" device="050-025X075" package3d_urn="urn:adsk.eagle:package:23637/1" value="1nF"/>
-<part name="C3" library="resistor" deviceset="C-EU" device="050-025X075" package3d_urn="urn:adsk.eagle:package:23637/1" value="1nF"/>
+<part name="C2" library="resistor" deviceset="C-EU" device="050-025X075" package3d_urn="urn:adsk.eagle:package:23637/1" value="1uF"/>
+<part name="C3" library="resistor" deviceset="C-EU" device="050-025X075" package3d_urn="urn:adsk.eagle:package:23637/1" value="1uF"/>
 <part name="GND7" library="supply1" deviceset="GND" device=""/>
 <part name="GND8" library="supply1" deviceset="GND" device=""/>
 <part name="Q1" library="transistor-fet" deviceset="VISHAY_SQP90P06-07L" device="TO220V" value="SQP90P06-07L_GE3"/>
