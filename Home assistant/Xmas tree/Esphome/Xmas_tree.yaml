@@ -1,5 +1,5 @@
 esphome:
-  name: Xmas_tree
+  name: stromek
   platform: ESP8266
   board: d1_mini
 
@@ -32,9 +32,32 @@ ota:
 light:
   - platform: binary
     name: "Stromek"
-    output: output_gpio
+    id: "stromek"
+    output: output_d1
+    effects:
+      - lambda:
+          name: "Motor"
+          update_interval: 1s
+          lambda: |-
+            id(motor).turn_on();
+      - lambda:
+          name: "Bez motoru"
+          update_interval: 1s
+          lambda: |-
+            id(motor).turn_off();
+    on_turn_off:
+      - switch.turn_off: motor
+          
+switch:
+  - platform: output
+    id: "motor"
+    output: output_d2
 
 output:
   - platform: gpio
-    id: output_gpio
-    pin: 2
+    id: output_d1
+    pin: D1
+  - platform: gpio
+    id: output_d2
+    pin: D2
+
