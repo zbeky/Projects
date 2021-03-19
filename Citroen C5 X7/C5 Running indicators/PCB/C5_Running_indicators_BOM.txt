@@ -1,0 +1,9 @@
+Partlist exported from //cz-prl-ns-17.kiekert.com/User-Documents/senkerikm/EAGLE/projects/Doma/C5 Blinkry/C5_Running_indicators.sch at 16.03.2021 11:03
+
+Part Value                Device               Package         Description                                                                                                 
+C1   1uF                  C-EU050-025X075      C050-025X075    CAPACITOR, European symbol                                                                                  
+G1   DC-DC-STEP-DOWN-MINI DC-DC-STEP-DOWN-MINI DC-DC-DOWN-MINI Mini DC-DC 12-24V To 5V 3A Step Down Power Supply Module Voltage Buck Converter Adjustable Efficiency 97.5% 
+IC1  ATTINY84A-PU         ATTINY84A-PU         DIL14           8-bit AVR tiny Microcontroller                                                                              
+U1   TPL7407LDR           TPL7407LDR           SOIC16N         The library has been designed by Richard Magdycz                                                            
+X1   PINHD-1X2            PINHD-1X2            1X02                                                                                                                        
+X2                        PINHD-1X8            1X08            PIN HEADER                                                                                                  
