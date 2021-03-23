@@ -1,0 +1,17 @@
+'cover_group':
+  alias: Cover control
+  sequence:
+    - service: "cover.{{modus}}_cover"
+      data:
+        entity_id:
+          - cover.left_cover
+          - cover.right_cover
+'cover_group_position':
+  alias: Tilt control
+  sequence:
+    - service: cover.set_cover_tilt_position
+      data:
+        entity_id:
+          - cover.left_cover
+          - cover.right_cover
+        tilt_position: "{{tilt_position}}"

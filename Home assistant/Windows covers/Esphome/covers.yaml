@@ -1,0 +1,248 @@
+esphome:
+  name: zaluzie
+  platform: ESP32
+  board: esp-wrover-kit
+
+wifi:
+  ssid: "SSID"
+  password: "PASSWORD"
+  manual_ip:
+    # Set this to the IP of the ESP
+    static_ip: 10.0.0.x
+    # Set this to the IP address of the router. Often ends with .1
+    gateway: 10.0.0.1
+    # The subnet of the network. 255.255.255.0 works for most home networks.
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Zaluzie Fallback Hotspot"
+    password: "Q4M6UIksWr84"
+
+captive_portal:
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+globals:
+  - id: timelock
+    type: int
+
+sensor:
+  - platform: adc
+    pin: GPIO34
+    id: tilt_left
+    update_interval: 1ms
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    filters:
+      - calibrate_linear:
+        - 0.0 -> -2
+        - 1.15 -> 110
+      - lambda: |-
+          static int last_value = -100;
+          int MIN_DELTA = 4;
+          if (last_value == -100) {
+            return last_value = x;
+          } else if (x < 0) {
+            return last_value = 0;
+          } else if (x > 100) {
+            return last_value = 100;
+          } else if (std::abs(x - last_value) >= MIN_DELTA) {
+            if (x > last_value) {
+              return last_value = x - (int(x) % MIN_DELTA);
+            } else {
+              return last_value = x + (MIN_DELTA - (int(x) % MIN_DELTA));
+            }
+          } else {
+            return {};
+          }
+  - platform: adc
+    pin: GPIO35
+    id: tilt_right
+    update_interval: 1ms
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    filters:
+      - calibrate_linear:
+        - 0.0 -> 102
+        - 1.1 -> -13
+      - lambda: |-
+          static int last_value = -100;
+          int MIN_DELTA = 4;
+          if (last_value == -100) {
+            return last_value = x;
+          } else if (x < 0) {
+            return last_value = 0;
+          } else if (x > 100) {
+            return last_value = 100;
+          } else if (std::abs(x - last_value) >= MIN_DELTA) {
+            if (x > last_value) {
+              return last_value = x - (int(x) % MIN_DELTA);
+            } else {
+              return last_value = x + (MIN_DELTA - (int(x) % MIN_DELTA));
+            }
+          } else {
+            return {};
+          }
+output:      
+ - platform: gpio
+   pin: GPIO27
+   id: motor_left_b
+ - platform: gpio
+   pin: GPIO13
+   id: motor_left_a
+ - platform: gpio
+   pin: GPIO25
+   id: motor_right_b
+ - platform: gpio
+   pin: GPIO26
+   id: motor_right_a
+    
+cover:  
+  - platform: template
+    name: "Left cover"
+    id: left_cover
+    has_position: false
+    device_class: blind
+    lambda: |-
+      if (id(tilt_left).state <= 10 || id(tilt_left).state >= 90) {
+        return COVER_CLOSED;
+      } else {
+        return COVER_OPEN;
+      }
+    tilt_lambda: |-
+      return int(id(tilt_left).state)/100.0;
+    open_action:
+      - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - if:
+          condition:
+            lambda: 'return id(tilt_left).state < 50;'
+          then:
+            - output.turn_on: motor_left_b
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_left).state < 50;'
+                then:
+                  - delay: 10ms
+          else:
+            - output.turn_on: motor_left_a
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_left).state > 50;'
+                then:
+                  - delay: 10ms
+      - output.turn_off: motor_left_a
+      - output.turn_off: motor_left_b
+    close_action:
+      - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - output.turn_on: motor_left_a
+      - while:
+          condition:
+            lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_left).state > 1;'
+          then:
+            - delay: 10ms
+      - output.turn_off: motor_left_a
+      - output.turn_off: motor_left_b
+    stop_action:
+      - output.turn_off: motor_left_a
+      - output.turn_off: motor_left_b
+    tilt_action:
+      - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - if:
+          condition:
+            lambda: 'return id(tilt_left).state < tilt*100.0;'
+          then:
+            - output.turn_on: motor_left_b
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_left).state + 1 < int(tilt*100.0);'
+                then:
+                  - delay: 5ms
+          else:
+            - output.turn_on: motor_left_a
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_left).state - 1 > int(tilt*100.0);'
+                then:
+                  - delay: 5ms
+      - output.turn_off: motor_left_a
+      - output.turn_off: motor_left_b
+  - platform: template
+    name: "Right cover"
+    id: right_cover
+    has_position: false
+    device_class: blind
+    lambda: |-
+      if (id(tilt_right).state <= 10 || id(tilt_right).state >= 90) {
+        return COVER_CLOSED;
+      } else {
+        return COVER_OPEN;
+      }
+    tilt_lambda: |-
+      return int(id(tilt_right).state)/100.0;
+    open_action:
+      - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - if:
+          condition:
+            lambda: 'return id(tilt_right).state < 50;'
+          then:
+            - output.turn_on: motor_right_b
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_right).state < 50;'
+                then:
+                  - delay: 10ms
+          else:
+            - output.turn_on: motor_right_a
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_right).state > 50;'
+                then:
+                  - delay: 10ms
+      - output.turn_off: motor_right_a
+      - output.turn_off: motor_right_b
+    close_action:
+      - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - output.turn_on: motor_right_a
+      - while:
+          condition:
+            lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_right).state > 1;'
+          then:
+            - delay: 10ms
+      - output.turn_off: motor_right_a
+      - output.turn_off: motor_right_b
+    stop_action:
+      - output.turn_off: motor_right_a
+      - output.turn_off: motor_right_b
+    tilt_action:
+      - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - if:
+          condition:
+            lambda: 'return id(tilt_right).state < tilt*100.0;'
+          then:
+            - output.turn_on: motor_right_b
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_right).state + 1 < int(tilt*100.0);'
+                then:
+                  - delay: 5ms
+          else:
+            - output.turn_on: motor_right_a
+            - while:
+                condition:
+                  lambda: 'return id(homeassistant_time).now().timestamp -  id(timelock) < 60 and id(tilt_right).state - 1 > int(tilt*100.0);'
+                then:
+                  - delay: 5ms
+      - output.turn_off: motor_right_a
+      - output.turn_off: motor_right_b
