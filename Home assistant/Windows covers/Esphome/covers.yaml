@@ -125,6 +125,9 @@ cover:
       return int(id(tilt_left).state)/100.0;
     open_action:
       - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - cover.template.publish:
+          id: left_cover
+          current_operation: OPENING
       - if:
           condition:
             lambda: 'return id(tilt_left).state < 50;'
@@ -144,8 +147,14 @@ cover:
                   - delay: 10ms
       - output.turn_off: motor_left_a
       - output.turn_off: motor_left_b
+      - cover.template.publish:
+          id: left_cover
+          current_operation: IDLE
     close_action:
       - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - cover.template.publish:
+          id: left_cover
+          current_operation: CLOSING
       - output.turn_on: motor_left_a
       - while:
           condition:
@@ -154,15 +163,24 @@ cover:
             - delay: 10ms
       - output.turn_off: motor_left_a
       - output.turn_off: motor_left_b
+      - cover.template.publish:
+          id: left_cover
+          current_operation: IDLE
     stop_action:
       - output.turn_off: motor_left_a
       - output.turn_off: motor_left_b
+      - cover.template.publish:
+          id: left_cover
+          current_operation: IDLE
     tilt_action:
       - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
       - if:
           condition:
             lambda: 'return id(tilt_left).state < tilt*100.0;'
           then:
+            - cover.template.publish:
+                id: left_cover
+                current_operation: OPENING
             - output.turn_on: motor_left_b
             - while:
                 condition:
@@ -170,6 +188,9 @@ cover:
                 then:
                   - delay: 5ms
           else:
+            - cover.template.publish:
+                id: left_cover
+                current_operation: CLOSING
             - output.turn_on: motor_left_a
             - while:
                 condition:
@@ -178,6 +199,9 @@ cover:
                   - delay: 5ms
       - output.turn_off: motor_left_a
       - output.turn_off: motor_left_b
+      - cover.template.publish:
+          id: left_cover
+          current_operation: IDLE
   - platform: template
     name: "Right cover"
     id: right_cover
@@ -193,6 +217,9 @@ cover:
       return int(id(tilt_right).state)/100.0;
     open_action:
       - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - cover.template.publish:
+          id: right_cover
+          current_operation: OPENING
       - if:
           condition:
             lambda: 'return id(tilt_right).state < 50;'
@@ -212,8 +239,14 @@ cover:
                   - delay: 10ms
       - output.turn_off: motor_right_a
       - output.turn_off: motor_right_b
+      - cover.template.publish:
+          id: right_cover
+          current_operation: IDLE
     close_action:
       - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
+      - cover.template.publish:
+          id: right_cover
+          current_operation: CLOSING
       - output.turn_on: motor_right_a
       - while:
           condition:
@@ -222,15 +255,24 @@ cover:
             - delay: 10ms
       - output.turn_off: motor_right_a
       - output.turn_off: motor_right_b
+      - cover.template.publish:
+          id: right_cover
+          current_operation: IDLE
     stop_action:
       - output.turn_off: motor_right_a
       - output.turn_off: motor_right_b
+      - cover.template.publish:
+          id: right_cover
+          current_operation: IDLE
     tilt_action:
       - lambda: 'id(timelock) = id(homeassistant_time).now().timestamp;'
       - if:
           condition:
             lambda: 'return id(tilt_right).state < tilt*100.0;'
           then:
+            - cover.template.publish:
+                id: right_cover
+                current_operation: OPENING
             - output.turn_on: motor_right_b
             - while:
                 condition:
@@ -238,6 +280,9 @@ cover:
                 then:
                   - delay: 5ms
           else:
+            - cover.template.publish:
+                id: right_cover
+                current_operation: CLOSING
             - output.turn_on: motor_right_a
             - while:
                 condition:
@@ -246,3 +291,6 @@ cover:
                   - delay: 5ms
       - output.turn_off: motor_right_a
       - output.turn_off: motor_right_b
+      - cover.template.publish:
+          id: right_cover
+          current_operation: IDLE
