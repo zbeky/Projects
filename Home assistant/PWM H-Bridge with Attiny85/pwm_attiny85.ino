@@ -25,7 +25,13 @@ void setup() {
 void loop() {
 
   dutyCycleA = analogRead(PB2)*0.185; //10bit analog read to 8bit duty (1024->256 = /8), 3V3->5V compensation *1,5
+  if (dutyCycleA < 6) {
+	dutyCycleA = 0;
+  }	
   dutyCycleB = analogRead(PB4)*0.185; //10bit analog read to 8bit duty (1024->256 = /8), 3V3->5V compensation *1,5
+  if (dutyCycleB < 6) {
+	dutyCycleB = 0;
+  }	
   OCR0B = 255 - dutyCycleB;
   OCR0A = dutyCycleA;
 
