@@ -1,0 +1,7 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "_TI_TPS562209")(type "KiCad")(uri "${KIPRJMOD}/ESP32-C6_Covers.pretty/TI_TPS562209.kicad_sym")(options "")(descr ""))
+  (lib (name "_TTP223-BA6")(type "KiCad")(uri "${KIPRJMOD}/ESP32-C6_Covers.pretty/TTP223-BA6.kicad_sym")(options "")(descr ""))
+  (lib (name "_DRV8220")(type "KiCad")(uri "${KIPRJMOD}/ESP32-C6_Covers.pretty/DRV8220.kicad_sym")(options "")(descr ""))
+  (lib (name "_USB_C")(type "KiCad")(uri "${KIPRJMOD}/ESP32-C6_Covers.pretty/USB_C.kicad_sym")(options "")(descr ""))
+)
