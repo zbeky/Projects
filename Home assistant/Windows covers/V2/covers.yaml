@@ -1,0 +1,477 @@
+esp32:
+  board: ${node_board}
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+    version: 5.1.2
+    platform_version: 6.5.0
+    sdkconfig_options:
+      CONFIG_ESPTOOLPY_FLASHSIZE_2MB: n
+      CONFIG_ESPTOOLPY_FLASHSIZE_4MB: y
+  variant: esp32c6
+
+esphome:
+  name: ${node_name}
+  friendly_name: ${friendly_name}
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_pass
+  fast_connect: on
+  power_save_mode: none
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${fallback_ap}"
+    password: !secret wifi_pass
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+
+external_components:
+  - source: custom_components
+    components: [ adc ]
+
+globals:
+  - id: calib_points
+    type: float[5]
+    restore_value: no
+    initial_value: '{0.0, 25.0, 50.0, 75.0, 100.0}'
+  - id: calib_top
+    type: float[5]
+    restore_value: yes
+    initial_value: '{200, 280, 350, 440, 570}'
+  - id: calib_bot
+    type: float[5]
+    restore_value: yes
+    initial_value: '{200, 280, 350, 440, 570}'
+
+interval:
+  - interval: 2s
+    then:
+      - lambda: 'ESP_LOGI("info", "Top raw: %f", id(pos_top).raw_state);'
+      - lambda: 'ESP_LOGI("info", "Bottom raw: %f", id(pos_bot).raw_state);'
+
+button:
+  - platform: restart
+    name: "Restart"
+  - platform: template
+    name: "Kalibrovat spodní - 0%"
+    id: calib_bottom_0
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_bot)[0] = id(pos_bot).raw_state;'
+  - platform: template
+    name: "Kalibrovat spodní - 25%"
+    id: calib_bottom_25
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_bot)[1] = id(pos_bot).raw_state;'
+  - platform: template
+    name: "Kalibrovat spodní - 50%"
+    id: calib_bottom_50
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_bot)[2] = id(pos_bot).raw_state;'
+  - platform: template
+    name: "Kalibrovat spodní - 75%"
+    id: calib_bottom_75
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_bot)[3] = id(pos_bot).raw_state;'
+  - platform: template
+    name: "Kalibrovat spodní - 100%"
+    id: calib_bottom_100
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_bot)[4] = id(pos_bot).raw_state;'
+  - platform: template
+    name: "Kalibrovat horní - 0%"
+    id: calib_top_0
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_top)[0] = id(pos_top).raw_state;'
+  - platform: template
+    name: "Kalibrovat horní - 25%"
+    id: calib_top_25
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_top)[1] = id(pos_top).raw_state;'
+  - platform: template
+    name: "Kalibrovat horní - 50%"
+    id: calib_top_50
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_top)[2] = id(pos_top).raw_state;'
+  - platform: template
+    name: "Kalibrovat horní - 75%"
+    id: calib_top_75
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_top)[3] = id(pos_top).raw_state;'
+  - platform: template
+    name: "Kalibrovat horní - 100%"
+    id: calib_top_100
+    entity_category: "config"
+    on_press:
+      - lambda: 'id(calib_top)[4] = id(pos_top).raw_state;'
+
+select:
+  - platform: template
+    name: "Povolit ruční ovládání"
+    id: allow_manual_control
+    icon: mdi:cursor-pointer
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options:
+      - Oboje
+      - Jen spodní
+      - Jen horní
+
+sensor:
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    id: wifi_signal_db
+    name: "WiFi signál"
+    update_interval: 60s
+    entity_category: "diagnostic"
+    icon: mdi:wifi
+  - platform: adc
+    pin: GPIO2
+    id: pos_bot
+    update_interval: 1ms
+    attenuation: 0db
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    filters:
+      - throttle_average: 15ms
+      - lambda: |-
+          if (x < id(calib_bot)[0]) return -1;
+          for (int i = 1; i < 5; i++) {
+            if (x < id(calib_bot)[i]) {
+              int val = ((float)x - id(calib_bot)[i-1]) * (id(calib_points)[i] - id(calib_points)[i-1]) / (id(calib_bot)[i] - id(calib_bot)[i-1]) + id(calib_points)[i-1];
+              return val;
+            }
+          }          
+          return 100;
+      - lambda: |-
+          static int last_value = -100;
+          int MIN_DELTA = 5;
+          if (last_value == -100) {
+            return last_value = x;
+          } else if (x < 0) {
+            return last_value = 0;
+          } else if (x > 100) {
+            return last_value = 100;
+          } else if (std::abs(x - last_value) >= MIN_DELTA) {
+            if (x > last_value) {
+              return last_value = x - (int(x) % MIN_DELTA);
+            } else {
+              return last_value = x + (MIN_DELTA - (int(x) % MIN_DELTA));
+            }
+          } else {
+            return {};
+          }
+  - platform: adc
+    pin: GPIO3
+    id: pos_top
+    update_interval: 1ms
+    attenuation: 0db
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    filters:
+      - throttle_average: 15ms
+      - lambda: |-
+          if (x < id(calib_top)[0]) return -1;
+          for (int i = 1; i < 5; i++) {
+            if (x < id(calib_top)[i]) {
+              int val = ((float)x - id(calib_top)[i-1]) * (id(calib_points)[i] - id(calib_points)[i-1]) / (id(calib_top)[i] - id(calib_top)[i-1]) + id(calib_points)[i-1];
+              return val;
+            }
+          }          
+          return 100;
+      - lambda: |-
+          static int last_value = -100;
+          int MIN_DELTA = 5;
+          if (last_value == -100) {
+            return last_value = x;
+          } else if (x < 0) {
+            return last_value = 0;
+          } else if (x > 100) {
+            return last_value = 100;
+          } else if (std::abs(x - last_value) >= MIN_DELTA) {
+            if (x > last_value) {
+              return last_value = x - (int(x) % MIN_DELTA);
+            } else {
+              return last_value = x + (MIN_DELTA - (int(x) % MIN_DELTA));
+            }
+          } else {
+            return {};
+          }
+
+number:
+  - platform: template
+    name: "PWM rychlost motorů"
+    id: motor_pwm_speed
+    entity_category: config
+    unit_of_measurement: "%"
+    icon: mdi:speedometer
+    optimistic: true
+    min_value: 20
+    max_value: 100
+    step: 5
+    initial_value: 100
+    restore_value: true
+  - platform: template
+    name: "Spodní výchozí pozice"
+    id: default_open_pos_bot
+    entity_category: config
+    unit_of_measurement: "%"
+    icon: mdi:blinds-open
+    optimistic: true
+    min_value: 5
+    max_value: 95
+    step: 5
+    initial_value: 50
+    restore_value: true
+  - platform: template
+    name: "Horní výchozí pozice"
+    id: default_open_pos_top
+    entity_category: config
+    unit_of_measurement: "%"
+    icon: mdi:blinds-open
+    optimistic: true
+    min_value: 5
+    max_value: 95
+    step: 5
+    initial_value: 50
+    restore_value: true
+
+output:      
+  - platform: ledc
+    pin: GPIO20
+    id: motor_top_a
+    frequency: 19531Hz
+  - platform: ledc
+    pin: GPIO21
+    id: motor_top_b
+    frequency: 19531Hz
+  - platform: ledc
+    pin: GPIO18
+    id: motor_bot_a
+    frequency: 19531Hz
+  - platform: ledc
+    pin: GPIO19
+    id: motor_bot_b
+    frequency: 19531Hz
+    
+cover:  
+  - platform: template
+    name: "Horní"
+    id: cover_top
+    has_position: true
+    device_class: blind
+    lambda: |-
+      return int(id(pos_top).state) / 100.0;
+    open_action:
+      - cover.control:
+          id: cover_top
+          position: !lambda 'return id(default_open_pos_top).state / 100.0;'
+    close_action:
+      - cover.template.publish:
+          id: cover_top
+          current_operation: CLOSING
+      - lambda: 'id(motor_top_a).set_level(id(motor_pwm_speed).state/100.0);'
+      - wait_until:
+          condition:
+            lambda: 'return id(pos_top).state <= 0.0;'
+          timeout: 15s
+      - cover.stop: cover_top
+    stop_action:
+      - output.turn_off: motor_top_a
+      - output.turn_off: motor_top_b
+      - cover.template.publish:
+          id: cover_top
+          current_operation: IDLE
+    position_action:
+      - if:
+          condition:
+            lambda: 'return id(pos_top).state < pos * 100.0;'
+          then:
+            - cover.template.publish:
+                id: cover_top
+                current_operation: OPENING            
+            - lambda: 'id(motor_top_b).set_level(id(motor_pwm_speed).state/100.0);'
+            - wait_until:
+                condition:
+                  lambda: 'return id(pos_top).state >= round(pos * 100.0);'
+                timeout: 15s
+          else:
+            - cover.template.publish:
+                id: cover_top
+                current_operation: CLOSING
+            - lambda: 'id(motor_top_a).set_level(id(motor_pwm_speed).state/100.0);'
+            - wait_until:
+                condition:
+                  lambda: 'return id(pos_top).state <= round(pos * 100.0);'
+                timeout: 15s
+      - cover.stop: cover_top
+  - platform: template
+    name: "Spodní"
+    id: cover_bot
+    has_position: true
+    device_class: blind
+    lambda: |-
+      return int(id(pos_bot).state) / 100.0;
+    open_action:
+      - cover.control:
+          id: cover_bot
+          position: !lambda 'return id(default_open_pos_bot).state / 100.0;'
+    close_action:
+      - cover.template.publish:
+          id: cover_bot
+          current_operation: CLOSING
+      - lambda: 'id(motor_bot_a).set_level(id(motor_pwm_speed).state/100.0);'
+      - wait_until:
+          condition:
+            lambda: 'return id(pos_bot).state <= 0.0;'
+          timeout: 15s
+      - cover.stop: cover_bot
+    stop_action:
+      - output.turn_off: motor_bot_a
+      - output.turn_off: motor_bot_b
+      - cover.template.publish:
+          id: cover_bot
+          current_operation: IDLE
+    position_action:
+      - if:
+          condition:
+            lambda: 'return pos == 1.0;'
+          then:
+            - cover.open: cover_bot
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(pos_bot).state < pos * 100.0;'
+                then:
+                  - cover.template.publish:
+                      id: cover_bot
+                      current_operation: OPENING
+                  - lambda: 'id(motor_bot_b).set_level(id(motor_pwm_speed).state/100.0);'
+                  - wait_until:
+                      condition:
+                        lambda: 'return id(pos_bot).state >= round(pos * 100.0);'
+                      timeout: 15s
+                else:
+                  - cover.template.publish:
+                      id: cover_bot
+                      current_operation: CLOSING            
+                  - lambda: 'id(motor_bot_a).set_level(id(motor_pwm_speed).state/100.0);'
+                  - wait_until:
+                      condition:
+                        lambda: 'return id(pos_bot).state <= round(pos * 100.0);'
+                      timeout: 15s
+            - cover.stop: cover_bot
+
+binary_sensor:
+  - platform: gpio
+    pin: GPIO10
+    id: btn_open
+    filters: 
+      - delayed_on_off: 50ms
+    on_press:
+      then:
+        - if:
+            condition: 
+              lambda: 'return id(cover_top).current_operation != CoverOperation::COVER_OPERATION_IDLE || id(cover_bot).current_operation != CoverOperation::COVER_OPERATION_IDLE;'
+            then:
+              - logger.log: "Stopping covers"
+              - cover.stop: cover_top
+              - cover.stop: cover_bot
+            else:
+              - logger.log: "Moving cover forward"
+              - if:
+                  condition:
+                    - lambda: 'return id(allow_manual_control).state != "Jen spodní";'
+                  then:
+                    - if:
+                        condition:
+                          lambda: 'return round(id(cover_top).position * 100.0) < id(default_open_pos_top).state;'
+                        then:
+                          - cover.control:
+                              id: cover_top
+                              position: !lambda 'return id(default_open_pos_top).state / 100.0;'
+                        else:
+                          - cover.control:
+                              id: cover_top
+                              position: 99% # 100% calls cover.open
+              - if:
+                  condition:
+                    - lambda: 'return id(allow_manual_control).state != "Jen horní";'
+                  then:
+                    - if:
+                        condition:
+                          lambda: 'return round(id(cover_bot).position * 100.0) < id(default_open_pos_bot).state;'
+                        then:
+                          - cover.control:
+                              id: cover_bot
+                              position: !lambda 'return id(default_open_pos_bot).state / 100.0;'
+                        else:
+                          - cover.control:
+                              id: cover_bot
+                              position: 99% # 100% calls cover.open
+  - platform: gpio
+    pin: GPIO11
+    id: btn_close
+    filters: 
+      - delayed_on_off: 50ms
+    on_press:
+      then:
+        - if:
+            condition: 
+              lambda: 'return id(cover_top).current_operation != CoverOperation::COVER_OPERATION_IDLE || id(cover_bot).current_operation != CoverOperation::COVER_OPERATION_IDLE;'
+            then:
+              - logger.log: "Stopping covers"
+              - cover.stop: cover_top
+              - cover.stop: cover_bot
+            else:
+              - logger.log: "Moving covers backwards"
+              - if:
+                  condition:
+                    - lambda: 'return id(allow_manual_control).state != "Jen spodní";'
+                  then:
+                    - if:
+                        condition:
+                          lambda: 'return round(id(cover_top).position * 100.0) <= id(default_open_pos_top).state;'
+                        then:
+                          - cover.control:
+                              id: cover_top
+                              position: 0%
+                        else:
+                          - cover.control:
+                              id: cover_top
+                              position: !lambda 'return id(default_open_pos_top).state / 100.0;'
+              - if:
+                  condition:
+                    - lambda: 'return id(allow_manual_control).state != "Jen horní";'
+                  then:
+                    - if:
+                        condition:
+                          lambda: 'return round(id(cover_bot).position * 100.0) <= id(default_open_pos_bot).state;'
+                        then:
+                          - cover.control:
+                              id: cover_bot
+                              position: 0%
+                        else:
+                          - cover.control:
+                              id: cover_bot
+                              position: !lambda 'return id(default_open_pos_bot).state / 100.0;'
